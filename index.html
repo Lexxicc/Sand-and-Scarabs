@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scarabs">
+<meta name="theme-color" content="#0d0a1a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Sand & Scarabs v0.0.01</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0a1a;
+    --bg2: #1a1228;
+    --gold: #c8a84b;
+    --gold-bright: #f5d27a;
+    --lapis: #2a1a6e;
+    --lapis-bright: #5a3aaa;
+    --sand: #e8d5a3;
+    --scarlet: #8b1a1a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: #fff; font-family: 'Roboto', sans-serif; overflow: hidden; overscroll-behavior: none; }
+  body {
+    min-height: 100dvh; height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+    display: flex; flex-direction: column;
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(42,26,110,0.4) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 40% at 50% 100%, rgba(200,168,75,0.18) 0%, transparent 60%),
+      var(--bg);
+  }
+  /* Sand-dune SVG pattern across the bg */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: 0.12;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60' preserveAspectRatio='none'><path d='M 0 40 Q 25 10 50 30 T 100 30 T 150 30 T 200 30 L 200 60 L 0 60 Z' fill='%23c8a84b'/></svg>");
+    background-repeat: no-repeat; background-position: bottom center; background-size: 100% 30vh;
+  }
+  .gold-text { color: var(--gold); text-shadow: 0 0 6px rgba(200,168,75,0.5); }
+  .heading { font-family: 'Cinzel', serif; letter-spacing: 0.12em; text-transform: uppercase; }
+  /* Stone pillars frame */
+  #reels-wrap {
+    background: linear-gradient(180deg, #1a1228 0%, #0d0a1a 100%);
+    border-left: 8px solid;
+    border-right: 8px solid;
+    border-image: linear-gradient(180deg, var(--gold) 0%, #6b5421 50%, var(--gold) 100%) 1;
+    padding: 8px;
+    position: relative;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.5), inset 0 0 24px rgba(200,168,75,0.1);
+  }
+  #reels-wrap::before, #reels-wrap::after {
+    content: ''; position: absolute; left: -12px; right: -12px; height: 14px;
+    background: linear-gradient(180deg, var(--gold) 0%, #6b5421 100%);
+    border-top: 2px solid var(--gold-bright); border-bottom: 2px solid #3a2a10;
+  }
+  #reels-wrap::before { top: -14px; }
+  #reels-wrap::after { bottom: -14px; transform: scaleY(-1); }
+  #reels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; position: relative; z-index: 2; }
+  .reel { background: rgba(13,10,26,0.7); border: 1px solid rgba(200,168,75,0.35); display: flex; flex-direction: column; gap: 3px; padding: 3px; overflow: hidden; transition: opacity 0.18s; position: relative; }
+  .reel.spinning { animation: shake 0.18s infinite; }
+  @keyframes shake { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+  .cell { aspect-ratio: 1; background: rgba(232,213,163,0.04); border: 1px solid rgba(200,168,75,0.18); display: flex; align-items: center; justify-content: center; position: relative; }
+  .cell svg { width: 80%; height: 80%; }
+  .cell.win { animation: winpulse 0.55s ease-in-out infinite alternate; }
+  @keyframes winpulse { from{box-shadow:0 0 0 rgba(200,168,75,0)} to{box-shadow:0 0 16px var(--gold), inset 0 0 12px rgba(245,210,122,0.6)} }
+  /* Expanding wild animation */
+  .reel.expanded {
+    background: radial-gradient(circle, rgba(200,168,75,0.35) 0%, rgba(13,10,26,0.7) 100%);
+    border-color: var(--gold-bright);
+    animation: wildglow 0.9s ease-in-out infinite alternate;
+  }
+  @keyframes wildglow { from{box-shadow:0 0 8px rgba(200,168,75,0.4)} to{box-shadow:0 0 26px rgba(245,210,122,0.85), inset 0 0 16px rgba(245,210,122,0.5)} }
+  .cell.expanding { animation: ripple 0.4s ease-out; }
+  @keyframes ripple { 0%{transform:scale(0.6); opacity:0.4} 50%{transform:scale(1.1); opacity:1} 100%{transform:scale(1); opacity:1} }
+  /* Buttons */
+  .btn {
+    font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+    padding: 9px 14px; background: linear-gradient(180deg, #1a1228 0%, #0d0a1a 100%);
+    color: var(--gold); border: 2px solid var(--gold);
+    cursor: pointer; transition: all 0.12s;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(245,210,122,0.2);
+    min-height: 44px;
+  }
+  .btn:hover:not(:disabled) { background: linear-gradient(180deg, var(--gold) 0%, #8e7833 100%); color: var(--bg); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-spin {
+    font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 900;
+    padding: 14px 32px; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 50%, var(--gold) 100%);
+    color: var(--bg); border: 3px solid var(--gold-bright); cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.16em;
+    box-shadow: 0 0 22px rgba(200,168,75,0.5), inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.3);
+    min-height: 56px; min-width: 160px;
+  }
+  .btn-spin:disabled { opacity: 0.4; filter: grayscale(0.5); cursor: not-allowed; }
+  .btn-lapis { color: var(--lapis-bright); border-color: var(--lapis-bright); }
+  .btn-lapis:hover:not(:disabled) { background: var(--lapis); color: var(--gold-bright); }
+  /* Modals */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+  .modal { background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%); border: 3px solid var(--gold); padding: 20px 18px; max-width: 460px; width: 100%; max-height: 92dvh; overflow-y: auto; box-shadow: 0 0 36px rgba(200,168,75,0.3); }
+  .modal h2 { font-family: 'Cinzel', serif; color: var(--gold); text-transform: uppercase; letter-spacing: 0.14em; font-size: 1.4rem; margin: 0 0 10px; }
+  .modal h3 { font-family: 'Cinzel', serif; color: var(--lapis-bright); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.95rem; margin: 12px 0 4px; }
+  .modal p, .modal li { font-size: 0.95rem; color: var(--sand); line-height: 1.45; }
+  .modal ul { padding-left: 18px; margin: 6px 0; }
+  /* Big-win overlay */
+  #bigwin-overlay { position: fixed; inset: 0; z-index: 250; display: none; align-items: center; justify-content: center; pointer-events: none; }
+  #bigwin-overlay.show { display: flex; }
+  #bigwin-overlay .bw-text {
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: clamp(2rem, 9vw, 5rem);
+    color: var(--gold); text-shadow: 0 0 18px var(--gold-bright), 0 0 40px var(--gold);
+    letter-spacing: 0.08em; text-transform: uppercase; text-align: center;
+    animation: bw-rise 0.6s ease-out;
+  }
+  @keyframes bw-rise { from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1} }
+  /* Settings rows */
+  .srow { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(200,168,75,0.18); font-size: 0.95rem; }
+  .srow:last-child { border-bottom: none; }
+  .toggle { position: relative; width: 48px; height: 26px; background: var(--lapis); border: 1px solid var(--gold); cursor: pointer; }
+  .toggle::after { content: ''; position: absolute; top: 1px; left: 1px; width: 22px; height: 22px; background: var(--gold); transition: left 0.12s; }
+  .toggle.on::after { left: 23px; background: var(--gold-bright); }
+  /* Bonus banner */
+  #bonus-banner {
+    position: absolute; left: 50%; top: -2px; transform: translateX(-50%);
+    background: linear-gradient(180deg, var(--gold) 0%, #8e7833 100%); border: 1px solid var(--gold-bright); color: var(--bg);
+    font-family: 'Cinzel', serif; padding: 4px 12px; letter-spacing: 0.08em;
+    font-size: 0.85rem; z-index: 30; display: none; font-weight: 700;
+  }
+  #bonus-banner.show { display: block; }
+  /* Refill banner */
+  #refill-banner {
+    position: fixed; top: 4vh; left: 50%; transform: translateX(-50%);
+    background: var(--bg2); border: 2px solid var(--gold); color: var(--gold);
+    padding: 8px 14px; font-family: 'Cinzel', serif; letter-spacing: 0.08em;
+    z-index: 220; display: none; font-size: 0.9rem;
+  }
+  #refill-banner.show { display: block; animation: rb 4s ease-in-out forwards; }
+  @keyframes rb { 0%{opacity:0;transform:translate(-50%,-10px)} 10%,80%{opacity:1;transform:translate(-50%,0)} 100%{opacity:0;transform:translate(-50%,-10px)} }
+  /* Win text */
+  #win-display { color: var(--gold-bright); font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.08em; min-height: 1.4em; text-shadow: 0 0 8px var(--gold); }
+  /* Payline overlay */
+  #payline-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="refill-banner"></div>
+<div id="bigwin-overlay"><div class="bw-text" id="bw-text">GREAT PHARAOH</div></div>
+
+<header class="px-3 py-2 flex items-center justify-between" style="border-bottom:1px solid rgba(200,168,75,0.35); z-index:1; position:relative; flex-shrink:0">
+  <div class="heading text-lg gold-text">SAND &amp; SCARABS</div>
+  <div class="flex items-center gap-3 text-sm">
+    <div style="color:var(--sand)">BAL <span id="balance" class="gold-text font-bold">10000</span></div>
+    <button class="btn" style="padding:6px 10px;min-height:36px" onclick="openSettings()" aria-label="Settings">⚙</button>
+  </div>
+</header>
+
+<div class="px-3 py-2 flex items-center justify-between" style="z-index:1; position:relative; flex-shrink:0">
+  <div class="text-sm" style="color:var(--sand)">25 paylines · Bet <span id="bet-line-display" class="gold-text">10</span></div>
+  <div id="win-display"></div>
+</div>
+
+<div class="flex-1 min-h-0 flex items-center justify-center px-4 pb-2" style="z-index:1; position:relative">
+  <div id="reels-wrap" style="width:100%; max-width:420px">
+    <div id="bonus-banner"></div>
+    <div id="reels"></div>
+    <div id="payline-overlay"></div>
+  </div>
+</div>
+
+<footer class="px-3 pt-2 pb-3" style="z-index:1; position:relative; flex-shrink:0">
+  <div class="flex items-center justify-between mb-2 gap-2">
+    <div class="flex items-center gap-1 text-sm">
+      <span style="color:var(--lapis-bright); font-family:Cinzel; letter-spacing:0.1em">BET</span>
+      <button class="btn" style="padding:6px 10px;min-height:36px;min-width:36px" onclick="adjustBet(0.5)" aria-label="Halve bet">½</button>
+      <div id="bet-display" class="gold-text font-bold" style="min-width:48px; text-align:center; font-family:Cinzel">10</div>
+      <button class="btn" style="padding:6px 10px;min-height:36px;min-width:36px" onclick="adjustBet(2)" aria-label="Double bet">×2</button>
+      <button class="btn btn-lapis" style="padding:6px 10px;min-height:36px" onclick="adjustBet('max')">MAX</button>
+    </div>
+    <button class="btn" style="padding:6px 10px;min-height:36px" onclick="openPaytable()">PAYS</button>
+  </div>
+  <div class="flex items-center justify-between gap-2">
+    <button class="btn btn-lapis" id="auto-btn" onclick="toggleAuto()" style="min-height:48px">AUTO</button>
+    <button class="btn-spin" id="spin-btn" onclick="spin()">SPIN</button>
+    <button class="btn" id="turbo-btn" onclick="toggleTurbo()" style="min-height:48px">TURBO</button>
+  </div>
+  <div class="text-center text-xs mt-2" style="color:rgba(200,168,75,0.55); font-family:'Cinzel'; letter-spacing:0.12em">v0.0.01 · Sand &amp; Scarabs · Slot Launch</div>
+</footer>
+
+<div id="settings-modal" class="modal-bg hidden" onclick="if(event.target===this) closeSettings()">
+  <div class="modal">
+    <h2>Settings</h2>
+    <div class="srow"><span>Sound</span><div class="toggle on" id="t-sound" onclick="toggleSound()"></div></div>
+    <div class="srow"><span>Turbo</span><div class="toggle" id="t-turbo" onclick="toggleTurbo()"></div></div>
+    <div class="srow"><span>Auto-spin</span><span id="auto-default-display" style="color:var(--gold)">25</span></div>
+    <div class="srow"><span>RTP target</span><span style="color:var(--gold-bright)" id="rtp-display">93.0% (EGY_RTP_B)</span></div>
+    <div class="srow"><span>Volatility</span><span style="color:var(--lapis-bright)">MED-HIGH</span></div>
+    <div class="srow"><span>Reset wallet</span><button class="btn btn-lapis" onclick="resetWallet()" style="padding:6px 12px;min-height:36px">RESET</button></div>
+    <h3>Patch Notes</h3>
+    <div id="patch-notes" style="max-height:130px; overflow-y:auto; border:1px solid rgba(200,168,75,0.2); padding:6px 10px; font-size:0.85rem"></div>
+    <div class="flex gap-2 mt-3 justify-end">
+      <button class="btn" onclick="closeSettings()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div id="paytable-modal" class="modal-bg hidden" onclick="if(event.target===this) closePaytable()">
+  <div class="modal">
+    <h2>Paytable</h2>
+    <p class="text-xs" style="color:var(--sand)">Multipliers shown × bet ÷ 25 lines. Wins pay LEFT-to-RIGHT on 25 fixed lines. EYE = WILD (substitutes all except SCARAB). SCARAB = SCATTER, triggers TOMB OF RICHES.</p>
+    <div id="paytable-body" class="mt-3"></div>
+    <h3>Expanding Wild</h3>
+    <p>EYE OF HORUS on reels 2, 3, or 4 expands to fill the whole reel before paylines pay.</p>
+    <h3>Tomb of Riches</h3>
+    <p>3+ SCARAB scatters trigger free spins:</p>
+    <ul><li>3 = 8 spins, 4 = 12, 5 = 18</li>
+    <li>EYE wilds become STICKY (locked expanded for the rest of the bonus, up to 3 reels)</li>
+    <li>2+ scatters during bonus → +5 spins</li></ul>
+    <div class="flex gap-2 mt-3 justify-end"><button class="btn" onclick="closePaytable()">CLOSE</button></div>
+  </div>
+</div>
+
+<div id="intro-modal" class="modal-bg hidden" onclick="if(event.target===this) closeIntro()">
+  <div class="modal">
+    <h2>SAND &amp; SCARABS</h2>
+    <p style="color:var(--gold-bright); letter-spacing:0.08em; font-family:Cinzel; font-size:0.85rem">SLOT LAUNCH</p>
+    <p class="mt-3">Five reels. Twenty-five paylines. The Eye watches.</p>
+    <p>Land EYE on reels 2, 3, or 4 to expand the wild across the whole reel.</p>
+    <p>Three SCARABS open the tomb. Eight free spins with sticky wilds, sometimes more.</p>
+    <div class="flex gap-2 mt-4 justify-end">
+      <button class="btn btn-lapis" onclick="openPaytable(); closeIntro()">VIEW PAYS</button>
+      <button class="btn" onclick="closeIntro()">DESCEND</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const PATCH_NOTES = [
+    { v:'v0.0.01', date:'2026-05', notes:['Initial OPW build. 5x3 reels. 25 paylines. Expanding EYE wild on reels 2/3/4. Tomb of Riches free spins with sticky wilds.'] },
+  ];
+
+  const CODE = 'EGY';
+  const RTP_TARGET = 0.93;
+  const RTP_LABEL = '93.0% (EGY_RTP_B)';
+
+  const SYMBOLS = [
+    { k:'EYE',     wild:true,    weight: 1, pays:{3:10,  4:30, 5:150} },
+    { k:'PHARAOH', weight: 2, pays:{3:6,   4:20, 5:80} },
+    { k:'SCARAB',  scatter:true, weight: 3, pays:{3:4,   4:12, 5:50} },
+    { k:'ANKH',    weight: 5, pays:{3:2.5, 4:8,  5:30} },
+    { k:'SCEPTRE', weight: 7, pays:{3:1.5, 4:5,  5:20} },
+    { k:'PYRAMID', weight: 9, pays:{3:1,   4:4,  5:15} },
+    { k:'SERPENT', weight:11, pays:{3:0.8, 4:3,  5:10} },
+    { k:'CANOPIC', weight:13, pays:{3:0.5, 4:2,  5:6}  },
+  ];
+
+  const REELS = 5, ROWS = 3, LINES = 25;
+  const BET_MIN = 1, BET_MAX = 100, BET_DEFAULT = 10;
+  const REFILL_THRESHOLD = 500;
+  const REFILL_TO = 5000;
+
+  // 25 paylines: each [row-on-reel0, row-on-reel1, ..., row-on-reel4]
+  const PAYLINES = [
+    [1,1,1,1,1], [0,0,0,0,0], [2,2,2,2,2],
+    [0,1,2,1,0], [2,1,0,1,2],
+    [1,0,0,0,1], [1,2,2,2,1],
+    [0,0,1,2,2], [2,2,1,0,0],
+    [1,0,1,2,1], [1,2,1,0,1],
+    [0,1,1,1,0], [2,1,1,1,2],
+    [0,1,0,1,0], [2,1,2,1,2],
+    [1,1,0,1,1], [1,1,2,1,1],
+    [0,2,0,2,0], [2,0,2,0,2],
+    [1,0,2,0,1], [1,2,0,2,1],
+    [0,0,2,0,0], [2,2,0,2,2],
+    [0,1,2,0,1], [2,1,0,2,1],
+  ];
+
+  const state = {
+    wallet: 10000,
+    bet: BET_DEFAULT,
+    history: [],
+    settings: { sound: true, turbo: false, autoSpinDefault: 25 },
+    auto: 0,
+    spinning: false,
+    bonusActive: false,
+    bonusSpinsLeft: 0,
+    stickyReels: new Set(),  // reel indices with sticky expanded wild during bonus
+    reelGrid: [],  // [reel][row] = symbol
+  };
+
+  function loadAll() {
+    try {
+      const w = parseInt(localStorage.getItem(`${CODE}_wallet`), 10);
+      if (Number.isFinite(w) && w >= 0) state.wallet = w;
+      const h = JSON.parse(localStorage.getItem(`${CODE}_history`) || '[]');
+      if (Array.isArray(h)) state.history = h.slice(0, 20);
+      const s = JSON.parse(localStorage.getItem(`${CODE}_settings`) || 'null');
+      if (s && typeof s === 'object') state.settings = Object.assign(state.settings, s);
+    } catch (e) {
+      console.warn(`[${CODE}] corrupt localStorage, resetting`, e);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    let lastRefill = null;
+    try { lastRefill = localStorage.getItem(`${CODE}_lastRefillDate`); } catch {}
+    if (state.wallet < REFILL_THRESHOLD && lastRefill !== today) {
+      const before = state.wallet;
+      state.wallet = REFILL_TO;
+      try { localStorage.setItem(`${CODE}_lastRefillDate`, today); } catch {}
+      showRefillBanner(REFILL_TO - before);
+    }
+    saveWallet();
+  }
+  function saveWallet() { try { localStorage.setItem(`${CODE}_wallet`, String(state.wallet)); } catch {} }
+  function saveHistory() { try { localStorage.setItem(`${CODE}_history`, JSON.stringify(state.history.slice(0, 20))); } catch {} }
+  function saveSettings() { try { localStorage.setItem(`${CODE}_settings`, JSON.stringify(state.settings)); } catch {} }
+
+  function rng() { return Math.random(); }
+  function weightedSymbolPick(pool=SYMBOLS) {
+    const totalW = pool.reduce((a, b) => a + b.weight, 0);
+    let r = rng() * totalW;
+    for (const s of pool) { if ((r -= s.weight) <= 0) return s.k; }
+    return pool[pool.length - 1].k;
+  }
+
+  let ac = null, master = null;
+  function audio() {
+    if (!ac) { try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = state.settings.sound ? 0.18 : 0;
+      master.connect(ac.destination);
+    } catch { ac = null; } }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(freq, dur, type='triangle', vol=0.35, attack=0.003) {
+    const a = audio(); if (!a || !state.settings.sound) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = freq;
+    const t = a.currentTime;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  const sfx = {
+    spin()    { tone(180, 0.08, 'triangle', 0.3); },
+    reelStop(){ tone(220, 0.06, 'square', 0.22); },
+    win()     { [392,494,587].forEach((f,i) => setTimeout(() => tone(f, 0.2, 'triangle', 0.4), i*70)); },
+    bigwin()  { [392,494,587,784,988].forEach((f,i) => setTimeout(() => tone(f, 0.24, 'triangle', 0.42), i*80)); },
+    wild()    { tone(440, 0.3, 'sine', 0.4); tone(880, 0.2, 'sine', 0.3, 0.02); },
+    bonus()   { [392,587,784,988].forEach((f,i) => setTimeout(() => tone(f, 0.32, 'square', 0.5), i*100)); },
+    coin()    { tone(880, 0.05, 'square', 0.3); },
+  };
+
+  function svgFor(k) {
+    const m = {
+      EYE: `<svg viewBox="0 0 64 64"><defs><radialGradient id="ge${k}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f5d27a"/><stop offset="100%" stop-color="#8e7833"/></radialGradient></defs><path d="M 6 32 Q 32 12 58 32 Q 32 52 6 32 Z" fill="url(#ge${k})" stroke="#c8a84b" stroke-width="2"/><circle cx="32" cy="32" r="10" fill="#2a1a6e"/><circle cx="32" cy="32" r="5" fill="#0d0a1a"/><circle cx="34" cy="30" r="1.5" fill="#fff"/><path d="M 14 38 L 8 46 M 32 42 L 32 52 M 50 38 L 56 46" stroke="#c8a84b" stroke-width="2" stroke-linecap="round"/></svg>`,
+      PHARAOH: `<svg viewBox="0 0 64 64"><path d="M 32 4 L 24 16 L 18 26 L 22 36 L 42 36 L 46 26 L 40 16 Z" fill="#c8a84b" stroke="#6b5421" stroke-width="1.5"/><rect x="20" y="26" width="24" height="6" fill="#2a1a6e"/><circle cx="32" cy="46" r="14" fill="#e8d5a3" stroke="#c8a84b" stroke-width="1.5"/><path d="M 26 44 L 26 48 M 38 44 L 38 48" stroke="#0d0a1a" stroke-width="2" stroke-linecap="round"/><path d="M 28 52 Q 32 54 36 52" fill="none" stroke="#0d0a1a" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+      SCARAB: `<svg viewBox="0 0 64 64"><ellipse cx="32" cy="38" rx="20" ry="22" fill="#2a1a6e" stroke="#c8a84b" stroke-width="2"/><path d="M 24 22 L 18 16 M 40 22 L 46 16" stroke="#c8a84b" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="26" r="6" fill="#c8a84b"/><path d="M 32 28 L 32 56 M 22 36 L 32 36 M 42 36 L 32 36 M 24 48 L 32 48 M 40 48 L 32 48" stroke="#c8a84b" stroke-width="1.5"/><ellipse cx="32" cy="38" rx="6" ry="10" fill="#5a3aaa"/></svg>`,
+      ANKH: `<svg viewBox="0 0 64 64"><circle cx="32" cy="20" r="10" fill="none" stroke="#c8a84b" stroke-width="4"/><rect x="29" y="28" width="6" height="28" fill="#c8a84b"/><rect x="18" y="34" width="28" height="6" fill="#c8a84b"/></svg>`,
+      SCEPTRE: `<svg viewBox="0 0 64 64"><path d="M 26 8 Q 26 4 30 4 L 36 4 L 38 18 L 32 22 L 26 18 Z" fill="#c8a84b" stroke="#6b5421" stroke-width="1.5"/><rect x="29" y="22" width="6" height="34" fill="#c8a84b"/><path d="M 26 56 L 38 56 L 36 60 L 28 60 Z" fill="#c8a84b"/><circle cx="32" cy="12" r="2.5" fill="#2a1a6e"/></svg>`,
+      PYRAMID: `<svg viewBox="0 0 64 64"><polygon points="32,10 58,52 6,52" fill="#e8d5a3" stroke="#c8a84b" stroke-width="2"/><polygon points="32,10 32,52 6,52" fill="#8e7833"/><line x1="14" y1="44" x2="50" y2="44" stroke="#6b5421" stroke-width="1"/><line x1="22" y1="32" x2="42" y2="32" stroke="#6b5421" stroke-width="1"/></svg>`,
+      SERPENT: `<svg viewBox="0 0 64 64"><path d="M 14 50 Q 14 38 24 38 Q 34 38 34 28 Q 34 20 42 20 Q 50 20 50 14" stroke="#2a1a6e" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M 14 50 Q 14 38 24 38 Q 34 38 34 28 Q 34 20 42 20 Q 50 20 50 14" stroke="#c8a84b" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="3,2"/><circle cx="50" cy="12" r="4" fill="#8b1a1a"/><circle cx="51" cy="11" r="1" fill="#fff"/></svg>`,
+      CANOPIC: `<svg viewBox="0 0 64 64"><rect x="20" y="18" width="24" height="8" fill="#c8a84b" stroke="#6b5421" stroke-width="1"/><path d="M 18 26 L 22 56 L 42 56 L 46 26 Z" fill="#e8d5a3" stroke="#c8a84b" stroke-width="1.5"/><path d="M 26 32 L 38 32 M 28 38 L 36 38 M 28 44 L 36 44" stroke="#2a1a6e" stroke-width="1.5"/><circle cx="32" cy="22" r="3" fill="#2a1a6e"/></svg>`,
+    };
+    return m[k] || '';
+  }
+
+  function generateGrid() {
+    const grid = [];
+    for (let r = 0; r < REELS; r++) {
+      // If sticky wild for this reel during bonus, lock to all EYE
+      if (state.bonusActive && state.stickyReels.has(r)) {
+        grid.push(Array(ROWS).fill('EYE'));
+        continue;
+      }
+      const col = [];
+      for (let y = 0; y < ROWS; y++) col.push(weightedSymbolPick());
+      grid.push(col);
+    }
+    return grid;
+  }
+
+  // Expanding wild: if EYE appears on reel 2, 3, or 4 (1-indexed → idx 1, 2, 3), expand whole reel.
+  // Returns { grid, expandedReels: Set }
+  function applyExpandingWild(grid) {
+    const expanded = new Set();
+    [1, 2, 3].forEach(r => {
+      if (grid[r].includes('EYE')) {
+        grid[r] = Array(ROWS).fill('EYE');
+        expanded.add(r);
+      }
+    });
+    return { grid, expanded };
+  }
+
+  function renderGrid(grid, opts={}) {
+    const wrap = document.getElementById('reels');
+    wrap.innerHTML = '';
+    grid.forEach((col, r) => {
+      const rEl = document.createElement('div');
+      rEl.className = 'reel';
+      if (opts.spinning) rEl.classList.add('spinning');
+      if (opts.expanded && opts.expanded.has(r)) rEl.classList.add('expanded');
+      col.forEach((sym, y) => {
+        const c = document.createElement('div');
+        c.className = 'cell';
+        c.dataset.r = r; c.dataset.y = y;
+        c.innerHTML = svgFor(sym);
+        if (opts.expandedCells && opts.expandedCells.has(`${r}_${y}`)) c.classList.add('expanding');
+        rEl.appendChild(c);
+      });
+      wrap.appendChild(rEl);
+    });
+  }
+
+  function evaluatePaylines(grid, betPerLine) {
+    let totalWin = 0;
+    const winLines = [];
+    PAYLINES.forEach((line, lineIdx) => {
+      const seq = line.map((row, r) => grid[r][row]);
+      // First non-scatter symbol — wild walks until it picks
+      let baseSym = null;
+      let streak = 0;
+      for (let i = 0; i < REELS; i++) {
+        const s = seq[i];
+        if (baseSym === null) {
+          if (s === 'EYE') { streak++; continue; }
+          if (s === 'SCARAB') { break; } // scatter doesn't pay on lines
+          baseSym = s; streak++;
+        } else {
+          if (s === baseSym || s === 'EYE') streak++;
+          else break;
+        }
+      }
+      // If all wilds (baseSym null but streak > 0), treat as EYE
+      if (baseSym === null && streak > 0) baseSym = 'EYE';
+      if (!baseSym || streak < 3) return;
+      const sd = SYMBOLS.find(x => x.k === baseSym);
+      if (!sd || !sd.pays[streak]) return;
+      const win = sd.pays[streak] * betPerLine;
+      totalWin += win;
+      winLines.push({ lineIdx, baseSym, streak, win, positions: line.slice(0, streak).map((row, r) => `${r}_${row}`) });
+    });
+    return { totalWin, winLines };
+  }
+
+  function countScatters(grid) {
+    let n = 0;
+    grid.forEach(col => col.forEach(s => { if (s === 'SCARAB') n++; }));
+    return n;
+  }
+
+  async function spin() {
+    if (state.spinning) return;
+    const cost = state.bonusActive ? 0 : state.bet;
+    if (cost > 0 && state.wallet < cost) { flashBalance(); return; }
+    state.spinning = true;
+    document.getElementById('spin-btn').disabled = true;
+    if (cost > 0) { state.wallet -= cost; updateBalance(); saveWallet(); }
+    sfx.spin();
+
+    const turbo = state.settings.turbo;
+    // Pre-roll spin frames
+    const frames = turbo ? 1 : 3;
+    for (let f = 0; f < frames; f++) {
+      const temp = [];
+      for (let r = 0; r < REELS; r++) {
+        const col = [];
+        for (let y = 0; y < ROWS; y++) col.push(weightedSymbolPick());
+        temp.push(col);
+      }
+      renderGrid(temp, { spinning: true });
+      await wait(turbo ? 40 : 120);
+    }
+    sfx.reelStop();
+
+    // Final grid
+    let grid = generateGrid();
+    // Expanding wild (only on reels 2/3/4)
+    const { expanded } = applyExpandingWild(grid);
+    state.reelGrid = grid;
+    if (expanded.size > 0) sfx.wild();
+    // Mark cells that became EYE through expansion as "expanding" animation
+    const expandedCells = new Set();
+    expanded.forEach(r => {
+      for (let y = 0; y < ROWS; y++) expandedCells.add(`${r}_${y}`);
+    });
+    renderGrid(grid, { expanded, expandedCells });
+
+    // Sticky wild commit during bonus
+    if (state.bonusActive) {
+      expanded.forEach(r => {
+        if (state.stickyReels.size < 3) state.stickyReels.add(r);
+      });
+    }
+
+    // Evaluate paylines
+    const betPerLine = state.bet / LINES;
+    const { totalWin, winLines } = evaluatePaylines(grid, betPerLine);
+
+    if (winLines.length > 0) {
+      highlightWinPositions(winLines);
+      sfx.win();
+      await wait(turbo ? 300 : 900);
+    }
+
+    // Scatter check
+    const scatters = countScatters(grid);
+    if (!state.bonusActive && scatters >= 3) {
+      triggerBonus(scatters);
+    } else if (state.bonusActive && scatters >= 2) {
+      retriggerBonus();
+    }
+
+    if (totalWin > 0) {
+      state.wallet += totalWin;
+      saveWallet();
+      updateBalance();
+      showWinText(totalWin);
+      sfx.coin();
+      if (totalWin >= state.bet * 20) showBigWin('GREAT PHARAOH');
+      if (totalWin >= state.bet * 75) showBigWin('TOMB JACKPOT');
+    } else {
+      document.getElementById('win-display').innerText = '';
+    }
+
+    state.history.unshift({ t: Date.now(), bet: cost, win: totalWin, bonus: state.bonusActive });
+    state.history = state.history.slice(0, 20);
+    saveHistory();
+
+    state.spinning = false;
+    document.getElementById('spin-btn').disabled = false;
+
+    if (state.bonusActive) {
+      state.bonusSpinsLeft--;
+      updateBonusBanner();
+      if (state.bonusSpinsLeft <= 0) {
+        endBonus();
+      } else {
+        await wait(turbo ? 250 : 900);
+        spin();
+      }
+      return;
+    }
+    if (state.auto > 0) {
+      state.auto--;
+      updateAutoBtn();
+      if (state.wallet >= state.bet) {
+        await wait(turbo ? 100 : 350);
+        spin();
+      } else {
+        state.auto = 0;
+        updateAutoBtn();
+      }
+    }
+  }
+
+  function highlightWinPositions(winLines) {
+    const pos = new Set();
+    winLines.forEach(w => w.positions.forEach(p => pos.add(p)));
+    document.querySelectorAll('#reels .cell').forEach(c => {
+      if (pos.has(`${c.dataset.r}_${c.dataset.y}`)) c.classList.add('win');
+    });
+  }
+
+  function showWinText(amount) {
+    document.getElementById('win-display').innerText = `+ ${Math.round(amount).toLocaleString()}`;
+  }
+  function showBigWin(text) {
+    const el = document.getElementById('bigwin-overlay');
+    document.getElementById('bw-text').innerText = text;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1300);
+    sfx.bigwin();
+  }
+  function flashBalance() {
+    const el = document.getElementById('balance');
+    el.style.color = 'var(--scarlet)';
+    setTimeout(() => { el.style.color = ''; }, 500);
+  }
+
+  function triggerBonus(scatters) {
+    const spins = scatters >= 5 ? 18 : scatters === 4 ? 12 : 8;
+    state.bonusActive = true;
+    state.bonusSpinsLeft = spins;
+    state.stickyReels = new Set();
+    sfx.bonus();
+    showBigWin(`TOMB OF RICHES · ${spins} SPINS`);
+    updateBonusBanner();
+  }
+  function retriggerBonus() {
+    state.bonusSpinsLeft += 5;
+    sfx.bonus();
+    showBigWin('+5 SPINS');
+    updateBonusBanner();
+  }
+  function endBonus() {
+    state.bonusActive = false;
+    state.bonusSpinsLeft = 0;
+    state.stickyReels = new Set();
+    updateBonusBanner();
+    showBigWin('TOMB SEALED');
+  }
+  function updateBonusBanner() {
+    const b = document.getElementById('bonus-banner');
+    if (state.bonusActive) {
+      b.classList.add('show');
+      b.innerText = `TOMB · ${state.bonusSpinsLeft} SPINS · ${state.stickyReels.size}/3 STICKY`;
+    } else b.classList.remove('show');
+  }
+
+  function updateBalance() { document.getElementById('balance').innerText = Math.floor(state.wallet).toLocaleString(); }
+  function adjustBet(op) {
+    if (state.spinning || state.bonusActive) return;
+    let b = state.bet;
+    if (op === 'max') b = BET_MAX;
+    else b = Math.round(b * op);
+    b = Math.max(BET_MIN, Math.min(BET_MAX, b));
+    state.bet = b;
+    document.getElementById('bet-display').innerText = b;
+    document.getElementById('bet-line-display').innerText = b;
+  }
+  function toggleAuto() {
+    if (state.spinning || state.bonusActive) { state.auto = 0; updateAutoBtn(); return; }
+    if (state.auto > 0) state.auto = 0;
+    else {
+      const seq = [10, 25, 50, 9999];
+      const cur = state.settings.autoSpinDefault;
+      const idx = seq.indexOf(cur);
+      const next = seq[(idx + 1) % seq.length];
+      state.settings.autoSpinDefault = next;
+      saveSettings();
+      state.auto = cur;
+      document.getElementById('auto-default-display').innerText = next === 9999 ? '∞' : String(next);
+      spin();
+      return;
+    }
+    updateAutoBtn();
+  }
+  function updateAutoBtn() {
+    const el = document.getElementById('auto-btn');
+    if (state.auto > 0) {
+      el.innerText = state.auto >= 9000 ? 'AUTO ∞' : `AUTO ${state.auto}`;
+      el.style.background = 'rgba(200,168,75,0.2)';
+    } else { el.innerText = 'AUTO'; el.style.background = ''; }
+  }
+  function toggleTurbo() {
+    state.settings.turbo = !state.settings.turbo;
+    saveSettings();
+    document.getElementById('t-turbo').classList.toggle('on', state.settings.turbo);
+    document.getElementById('turbo-btn').style.background = state.settings.turbo ? 'rgba(200,168,75,0.2)' : '';
+  }
+  function toggleSound() {
+    state.settings.sound = !state.settings.sound;
+    saveSettings();
+    if (master) master.gain.value = state.settings.sound ? 0.18 : 0;
+    document.getElementById('t-sound').classList.toggle('on', state.settings.sound);
+  }
+  function resetWallet() {
+    if (!confirm('Reset wallet to 10,000?')) return;
+    state.wallet = 10000;
+    saveWallet();
+    updateBalance();
+  }
+  function openSettings() {
+    if (state.spinning) return;
+    pushNav('settings');
+    document.getElementById('settings-modal').classList.remove('hidden');
+    document.getElementById('t-sound').classList.toggle('on', state.settings.sound);
+    document.getElementById('t-turbo').classList.toggle('on', state.settings.turbo);
+    document.getElementById('auto-default-display').innerText = state.settings.autoSpinDefault === 9999 ? '∞' : state.settings.autoSpinDefault;
+    document.getElementById('rtp-display').innerText = RTP_LABEL;
+    renderPatchNotes();
+  }
+  function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); popNav(); }
+  function openPaytable() { pushNav('paytable'); document.getElementById('paytable-modal').classList.remove('hidden'); renderPaytable(); }
+  function closePaytable() { document.getElementById('paytable-modal').classList.add('hidden'); popNav(); }
+  function closeIntro() { document.getElementById('intro-modal').classList.add('hidden'); try { localStorage.setItem(`${CODE}_seenIntro`, '1'); } catch {} }
+
+  function renderPatchNotes() {
+    const el = document.getElementById('patch-notes');
+    el.innerHTML = PATCH_NOTES.map(p => {
+      const items = p.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('');
+      return `<div style="margin-bottom:8px"><div style="color:var(--gold-bright); font-family:Cinzel; letter-spacing:0.06em; font-size:0.8rem">${p.v} · ${p.date}</div><ul style="padding-left:14px; margin:2px 0 0">${items}</ul></div>`;
+    }).join('');
+  }
+  function renderPaytable() {
+    const el = document.getElementById('paytable-body');
+    el.innerHTML = SYMBOLS.map(s => {
+      const tags = (s.wild ? ' <span style="color:var(--gold-bright);font-size:0.75rem">WILD</span>' : '') + (s.scatter ? ' <span style="color:var(--lapis-bright);font-size:0.75rem">SCATTER</span>' : '');
+      const pays = Object.keys(s.pays).sort((a,b)=>b-a).map(k => `${k}×${s.pays[k]}×`).join('  ·  ');
+      return `<div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid rgba(200,168,75,0.15)"><div style="width:42px; height:42px; flex-shrink:0">${svgFor(s.k)}</div><div style="flex:1"><div style="color:var(--gold); font-family:Cinzel; letter-spacing:0.05em; font-size:0.9rem">${s.k}${tags}</div><div style="color:var(--sand); font-size:0.82rem">${pays}</div></div></div>`;
+    }).join('');
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function showRefillBanner(amount) {
+    const b = document.getElementById('refill-banner');
+    b.innerText = `+${amount.toLocaleString()} DAILY REFILL`;
+    b.classList.add('show');
+    setTimeout(() => b.classList.remove('show'), 4200);
+  }
+
+  const _navStack = ['game'];
+  function pushNav(name) { _navStack.push(name); try { history.pushState({ name }, ''); } catch {} }
+  function popNav() { if (_navStack.length > 1) _navStack.pop(); }
+  window.addEventListener('popstate', () => {
+    const top = _navStack[_navStack.length - 1];
+    if (top === 'settings') closeSettings();
+    else if (top === 'paytable') closePaytable();
+  });
+
+  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function init() {
+    loadAll();
+    updateBalance();
+    document.getElementById('bet-display').innerText = state.bet;
+    document.getElementById('bet-line-display').innerText = state.bet;
+    renderGrid(generateGrid());
+    let seen = false;
+    try { seen = localStorage.getItem(`${CODE}_seenIntro`) === '1'; } catch {}
+    if (!seen) document.getElementById('intro-modal').classList.remove('hidden');
+    document.addEventListener('visibilitychange', () => {
+      if (master) master.gain.value = (state.settings.sound && !document.hidden) ? 0.18 : 0;
+    });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  window.spin = spin;
+  window.adjustBet = adjustBet;
+  window.toggleAuto = toggleAuto;
+  window.toggleTurbo = toggleTurbo;
+  window.toggleSound = toggleSound;
+  window.openSettings = openSettings;
+  window.closeSettings = closeSettings;
+  window.openPaytable = openPaytable;
+  window.closePaytable = closePaytable;
+  window.closeIntro = closeIntro;
+  window.resetWallet = resetWallet;
+
+  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState !== 'loading') init();
+})();
+</script>
+</body>
+</html>
