@@ -191,7 +191,7 @@
     <button class="btn-spin" id="spin-btn" onclick="spin()">SPIN</button>
     <button class="btn" id="turbo-btn" onclick="toggleTurbo()" style="min-height:48px">TURBO</button>
   </div>
-  <div class="text-center text-xs mt-2" style="color:rgba(200,168,75,0.55); font-family:'Cinzel'; letter-spacing:0.12em">v0.0.01 · Sand &amp; Scarabs · Slot Launch</div>
+  <div class="text-center text-xs mt-2" style="color:rgba(200,168,75,0.55); font-family:'Cinzel'; letter-spacing:0.12em">v0.0.02 · Sand &amp; Scarabs · Slot Launch</div>
 </footer>
 
 <div id="settings-modal" class="modal-bg hidden" onclick="if(event.target===this) closeSettings()">
@@ -246,6 +246,7 @@
   'use strict';
 
   const PATCH_NOTES = [
+    { v:'v0.0.02', date:'2026-05', notes:['Reset wallet dialog uses REFILL_TO constant; em-dash purge in comments.'] },
     { v:'v0.0.01', date:'2026-05', notes:['Initial OPW build. 5x3 reels. 25 paylines. Expanding EYE wild on reels 2/3/4. Tomb of Riches free spins with sticky wilds.'] },
   ];
 
@@ -429,7 +430,7 @@
     const winLines = [];
     PAYLINES.forEach((line, lineIdx) => {
       const seq = line.map((row, r) => grid[r][row]);
-      // First non-scatter symbol — wild walks until it picks
+      // First non-scatter symbol; wild walks until it picks
       let baseSym = null;
       let streak = 0;
       for (let i = 0; i < REELS; i++) {
@@ -668,8 +669,8 @@
     document.getElementById('t-sound').classList.toggle('on', state.settings.sound);
   }
   function resetWallet() {
-    if (!confirm('Reset wallet to 10,000?')) return;
-    state.wallet = 10000;
+    if (!confirm(`Reset wallet to ${REFILL_TO.toLocaleString()}?`)) return;
+    state.wallet = REFILL_TO;
     saveWallet();
     updateBalance();
   }
