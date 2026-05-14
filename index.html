@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0d0a1a">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
-<title>Sand & Scarabs v0.0.01</title>
+<title>Sand & Scarabs v0.0.03</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -151,6 +151,14 @@
 </head>
 <body>
 
+<nav id="sl-nav" style="display:none;flex-shrink:0;background:rgba(1,8,16,0.96);border-bottom:1px solid rgba(0,191,255,0.25);backdrop-filter:blur(8px);z-index:300;position:relative;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;">
+    <a id="sl-back" href="../../../Ventures/Slot%20Launch/index.html" style="color:#00E5FF;font-family:monospace;font-size:0.8rem;text-decoration:none;">&#8592; Hub</a>
+    <span style="color:#EAFAFF;font-weight:700;font-size:0.9rem;letter-spacing:0.05em;">Sand &amp; Scarabs</span>
+    <span id="sl-wallet-egy" style="color:#00E5FF;font-family:monospace;font-size:0.8rem;"></span>
+  </div>
+</nav>
+
 <div id="refill-banner"></div>
 <div id="bigwin-overlay"><div class="bw-text" id="bw-text">GREAT PHARAOH</div></div>
 
@@ -191,7 +199,7 @@
     <button class="btn-spin" id="spin-btn" onclick="spin()">SPIN</button>
     <button class="btn" id="turbo-btn" onclick="toggleTurbo()" style="min-height:48px">TURBO</button>
   </div>
-  <div class="text-center text-xs mt-2" style="color:rgba(200,168,75,0.55); font-family:'Cinzel'; letter-spacing:0.12em">v0.0.02 · Sand &amp; Scarabs · Slot Launch</div>
+  <div class="text-center text-xs mt-2" style="color:rgba(200,168,75,0.55); font-family:'Cinzel'; letter-spacing:0.12em">v0.0.03 · Sand &amp; Scarabs · Slot Launch</div>
 </footer>
 
 <div id="settings-modal" class="modal-bg hidden" onclick="if(event.target===this) closeSettings()">
@@ -246,11 +254,20 @@
   'use strict';
 
   const PATCH_NOTES = [
+    { v:'v0.0.03', date:'2026-05', notes:['Slot Launch hub integration (?sl=1): SL nav bar, wallet synced to sl:balance, intro suppressed in hub mode.'] },
     { v:'v0.0.02', date:'2026-05', notes:['Reset wallet dialog uses REFILL_TO constant; em-dash purge in comments.'] },
     { v:'v0.0.01', date:'2026-05', notes:['Initial OPW build. 5x3 reels. 25 paylines. Expanding EYE wild on reels 2/3/4. Tomb of Riches free spins with sticky wilds.'] },
   ];
 
   const CODE = 'EGY';
+  const SL_MODE = new URLSearchParams(location.search).get('sl') === '1';
+  function slGetBal() { const v = localStorage.getItem('sl:balance'); return v !== null ? parseInt(v, 10) : 10000; }
+  function slSyncNav() {
+    const el = document.getElementById('sl-wallet-egy');
+    if (el) el.textContent = state.wallet.toLocaleString() + ' coins';
+    localStorage.setItem('sl:balance', String(state.wallet));
+    if (window.SL_API) {}
+  }
   const RTP_TARGET = 0.93;
   const RTP_LABEL = '93.0% (EGY_RTP_B)';
 
@@ -301,7 +318,9 @@
 
   function loadAll() {
     try {
-      const w = parseInt(localStorage.getItem(`${CODE}_wallet`), 10);
+      const w = SL_MODE
+        ? slGetBal()
+        : parseInt(localStorage.getItem(`${CODE}_wallet`), 10);
       if (Number.isFinite(w) && w >= 0) state.wallet = w;
       const h = JSON.parse(localStorage.getItem(`${CODE}_history`) || '[]');
       if (Array.isArray(h)) state.history = h.slice(0, 20);
@@ -321,7 +340,10 @@
     }
     saveWallet();
   }
-  function saveWallet() { try { localStorage.setItem(`${CODE}_wallet`, String(state.wallet)); } catch {} }
+  function saveWallet() {
+    try { localStorage.setItem(`${CODE}_wallet`, String(state.wallet)); } catch {}
+    if (SL_MODE) slSyncNav();
+  }
   function saveHistory() { try { localStorage.setItem(`${CODE}_history`, JSON.stringify(state.history.slice(0, 20))); } catch {} }
   function saveSettings() { try { localStorage.setItem(`${CODE}_settings`, JSON.stringify(state.settings)); } catch {} }
 
@@ -716,6 +738,7 @@
   function pushNav(name) { _navStack.push(name); try { history.pushState({ name }, ''); } catch {} }
   function popNav() { if (_navStack.length > 1) _navStack.pop(); }
   window.addEventListener('popstate', () => {
+    if (SL_MODE) { location.href = document.getElementById('sl-back').href; return; }
     const top = _navStack[_navStack.length - 1];
     if (top === 'settings') closeSettings();
     else if (top === 'paytable') closePaytable();
@@ -729,9 +752,13 @@
     document.getElementById('bet-display').innerText = state.bet;
     document.getElementById('bet-line-display').innerText = state.bet;
     renderGrid(generateGrid());
-    let seen = false;
-    try { seen = localStorage.getItem(`${CODE}_seenIntro`) === '1'; } catch {}
-    if (!seen) document.getElementById('intro-modal').classList.remove('hidden');
+    if (SL_MODE) {
+      document.getElementById('sl-nav').style.display = 'block';
+    } else {
+      let seen = false;
+      try { seen = localStorage.getItem(`${CODE}_seenIntro`) === '1'; } catch {}
+      if (!seen) document.getElementById('intro-modal').classList.remove('hidden');
+    }
     document.addEventListener('visibilitychange', () => {
       if (master) master.gain.value = (state.settings.sound && !document.hidden) ? 0.18 : 0;
     });
